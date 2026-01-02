@@ -3,338 +3,143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سیستم قیمت قطعات موبایل - مدیریت مرکزی</title>
+    <title>پنل مدیریت هوشمند قیمت قطعات</title>
     <style>
-        * { font-family: Tahoma, sans-serif; box-sizing: border-box; }
-        body { margin: 0; padding: 15px; background: #f0f8ff; }
-        .container { max-width: 1400px; margin: 0 auto; }
-        .controls { background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 3px 15px rgba(0,0,0,0.1); }
-        h1 { color: #333; margin-top: 0; border-bottom: 3px solid #4CAF50; padding-bottom: 10px; font-size: 22px; }
-        .input-group { display: flex; align-items: center; gap: 10px; margin: 15px 0; flex-wrap: wrap; }
-        label { font-weight: bold; color: #555; min-width: 130px; }
-        input { padding: 10px 12px; border: 2px solid #ddd; border-radius: 6px; font-size: 16px; flex: 1; min-width: 200px; }
-        input[readonly] { background-color: #eee; cursor: not-allowed; border-color: #4CAF50; color: #2e7d32; font-weight: bold; }
-        button { background: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
-        button:hover { background: #45a049; }
-        .btn-refresh { background: #2196F3; }
-        .btn-refresh:hover { background: #1976D2; }
-        .results-header { background: #e3f2fd; padding: 12px 15px; border-radius: 8px; margin-bottom: 10px; color: #1565c0; font-weight: bold; }
-        .table-container { background: white; border-radius: 10px; overflow: auto; box-shadow: 0 3px 15px rgba(0,0,0,0.1); }
-        table { width: 100%; min-width: 1300px; border-collapse: collapse; }
-        thead { background: linear-gradient(135deg, #2196F3, #1976D2); position: sticky; top: 0; z-index: 10; }
-        th { color: white; padding: 14px 10px; text-align: center; font-size: 13px; white-space: nowrap; }
-        td { padding: 10px 8px; border-bottom: 1px solid #eee; text-align: center; font-size: 13px; }
-        .model-cell { font-weight: bold; color: #2196F3; text-align: right; padding-right: 15px; }
-        .price-cell { font-weight: bold; color: #d35400; }
-        .contact { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 3px 15px rgba(0,0,0,0.1); margin-top: 20px; }
-        .loading-status { font-size: 12px; color: #666; margin-right: 10px; }
+        :root { --primary-color: #2c3e50; --sec-color: #27ae60; }
+        body { font-family: Tahoma, Geneva, sans-serif; margin: 0; padding: 15px; background: #eef2f3; color: #333; }
+        .container { max-width: 100%; margin: 0 auto; }
+        
+        .controls { 
+            background: white; padding: 15px; border-radius: 12px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px;
+            position: sticky; top: 10px; z-index: 100;
+        }
+
+        .input-group { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        input { padding: 10px; border: 2px solid #ddd; border-radius: 8px; outline: none; transition: 0.3s; }
+        input:focus { border-color: var(--sec-color); }
+        #dollarRate { width: 120px; font-weight: bold; color: #d35400; background: #fff5e6; }
+        #searchInput { flex-grow: 1; min-width: 250px; }
+
+        /* استایل جدول */
+        .table-container { 
+            background: white; border-radius: 12px; overflow: auto; 
+            box-shadow: 0 5px 20px rgba(0,0,0,0.05); max-height: 75vh;
+        }
+        
+        table { border-collapse: collapse; width: 100%; min-width: 1000px; font-size: 13px; }
+        
+        /* فریز کردن ردیف اول */
+        thead th { 
+            position: sticky; top: 0; background: var(--primary-color); 
+            color: white; z-index: 10; padding: 12px 8px; text-align: right;
+            resize: horizontal; overflow: auto; /* قابلیت تغییر سایز ستون */
+            border: 1px solid #34495e;
+        }
+
+        td { padding: 8px; border-bottom: 1px solid #eee; white-space: nowrap; }
+        
+        /* رنگ بندی یک در میان */
+        tbody tr:nth-child(even) { background-color: #f8f9fa; }
+        tbody tr:hover { background-color: #e1f5fe; }
+
+        .model-cell { 
+            font-weight: bold; color: #1a237e; border-left: 2px solid #eee;
+            width: 150px; /* کمتر کردن فاصله مدل */
+        }
+
+        .status-bar { font-size: 12px; margin-top: 10px; color: #666; }
+        .price-val { color: #2e7d32; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="controls">
-            <h1>💰 سیستم قیمت‌گذاری قطعات موبایل</h1>
-            <div class="input-group">
-                <label for="dollarRate">نرخ دلار (تومان):</label>
-                <input type="number" id="dollarRate" value="0" readonly>
-                <button class="btn-refresh" onclick="fetchDollarRate()">🔄 بروزرسانی قیمت از مرکز</button>
-                <span id="loadStatus" class="loading-status"></span>
-            </div>
-            <div class="input-group">
-                <label for="searchInput">🔍 جستجوی مدل:</label>
-                <input type="text" id="searchInput" placeholder="مثال: A01, S20" onkeyup="searchModels()">
-                <button onclick="clearSearch()">🗑️ پاک کردن</button>
-            </div>
+
+<div class="container">
+    <div class="controls">
+        <div class="input-group">
+            <label>نرخ دلار (تومان):</label>
+            <input type="number" id="dollarRate" oninput="updatePrices()">
+            <input type="text" id="searchInput" placeholder="جستجوی مدل (مثلاً note 8 یا note8)..." oninput="updatePrices()">
+            <button onclick="fetchData()" style="padding: 10px; cursor: pointer;">بروزرسانی از شیت</button>
         </div>
-        
-        <div id="results">
-            <div class="results-header">در حال فراخوانی اطلاعات از گوگل...</div>
-            <div class="table-container"></div>
-        </div>
-        
-        <div class="contact">
-            <h3>📌 اطلاعات تماس</h3>
-            <p>تهران - درب سبز</p>
-        </div>
+        <div id="loadStatus" class="status-bar">در حال آماده‌سازی...</div>
     </div>
 
-    <script>
-        const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR6ZMpcmL_R5E8m9IOYJNOp-bTKbTq4AnPfe_17bbeIM-wRoORJEh3b-1bPX-JQ42c5Ol7jb8ZOm4WI/pub?output=csv';
+    <div id="results" class="table-container">
+        </div>
+</div>
 
-        const models = [
-            {model:"A013/A01 CORE", prices:[6.884057971,0,0,0,0,0,4.710144928,2.173913043,0,0.3623188406,0,0,0,0]},
-            {model:"A032/A03 CORE", prices:[6.884057971,0,0,0,0,0,5.434782609,2.173913043,0,0.3623188406,0,0,0,0]},
-            {model:"A01 BIG – M", prices:[6.884057971,0,0,0,0,0,4.710144928,2.173913043,0,0.3623188406,0,0,0,0]},
-            {model:"A01 SMALL – F", prices:[6.884057971,0,0,0,0,0,4.710144928,2.173913043,0,0.3623188406,0,0,0,0]},
-            {model:"A02S/A025F/A03S/A03", prices:[7.826086957,0,0,0,0,0,5.434782609,2.391304348,0,0.3623188406,0,0,0,0]},
-            {model:"A04", prices:[7.826086957,0,0,0,0,0,5.072463768,2.391304348,0,0.3623188406,0,0,0,0]},
-            {model:"A04E", prices:[7.826086957,0,0,0,0,0,5.072463768,2.391304348,0,0.3623188406,0,0,0,0]},
-            {model:"A04S/A13-5G", prices:[7.971014493,0,0,0,0,0,5.072463768,2.391304348,0,0.3623188406,0,0,0,0]},
-            {model:"A05", prices:[7.971014493,0,0,0,0,0,5.434782609,2.391304348,0,0.3623188406,0,0,0,0]},
-            {model:"A05S", prices:[8.84057971,0,0,0,0,0,5.434782609,2.536231884,0,0.3623188406,0,0,0,0]},
-            {model:"A06", prices:[7.971014493,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"a07", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"A10/M10", prices:[6.884057971,0,0,0,0,0,4.710144928,2.391304348,0.8695652174,0.3623188406,0,0,0,0]},
-            {model:"A10S/A107", prices:[6.884057971,0,0,0,0,0,5.072463768,2.391304348,0.9420289855,0.3623188406,0,0,0,0]},
-            {model:"A11/M11", prices:[8.333333333,0,0,0,0,0,5.072463768,2.391304348,0,0.3623188406,0,0,0,0]},
-            {model:"A12/A12S/A02/M02/A32.5G/M12S", prices:[7.971014493,0,0,0,0,0,5.072463768,2.391304348,0,0.3623188406,0,0,0,0]},
-            {model:"A13.4G / M13 / F13", prices:[8.188405797,0,0,0,0,0,5.072463768,3.260869565,0,0.3623188406,0,0,0,0]},
-            {model:"A14.4G", prices:[7.971014493,0,0,0,0,0,5.434782609,2.391304348,0,0.3623188406,0,0,0,0]},
-            {model:"A14.5G (A146B)", prices:[8.550724638,0,0,0,0,0,5.434782609,2.391304348,0,0.3623188406,0,0,0,0]},
-            {model:"A14.5G (A146P)", prices:[8.550724638,0,0,0,0,0,5.434782609,2.391304348,0,0.3623188406,0,0,0,0]},
-            {model:"A15+FRAME", prices:[38.04347826,0,23.1884058,16.66666667,12.31884058,0,5.434782609,2.898550725,1.449275362,0.3623188406,0,0,0,0]},
-            {model:"A16.4G+FRAME", prices:[38.4057971,30.43478261,23.91304348,16.66666667,12.31884058,0,5.434782609,2.898550725,1.449275362,0.3623188406,0,0,0,0]},
-            {model:"A17-4G+FRAME", prices:[0,0,0,0,0,0,0,2.391304348,0,0.3623188406,0,0,0,0]},
-            {model:"A20 +FRAME", prices:[27.53623188,0,18.84057971,15.2173913,0,0,5.072463768,2.391304348,1.086956522,0.3623188406,0,0,0,0]},
-            {model:"A20E/A10E", prices:[7.971014493,0,0,0,0,0,0,2.391304348,0,0.3623188406,0,0,0,0]},
-            {model:"A20S", prices:[7.971014493,0,0,0,0,0,5.072463768,2.391304348,1.086956522,0.3623188406,0,0,0,0]},
-            {model:"A21S", prices:[7.971014493,0,0,0,0,0,5.072463768,2.391304348,1.304347826,0.3623188406,0,0,0,0]},
-            {model:"A22 4G +FRAME", prices:[30.43478261,27.53623188,18.84057971,15.2173913,11.5942029,0,5.072463768,2.391304348,1.086956522,0.3623188406,0,0,0,0]},
-            {model:"A22 5G", prices:[8.695652174,0,0,0,0,0,5.434782609,2.391304348,0,0.3623188406,0,0,0,0]},
-            {model:"A23-4G / M33-5G /M23", prices:[9.057971014,0,0,0,0,0,5.797101449,3.260869565,0,0.3623188406,0,0,0,0]},
-            {model:"A24.4G+FRAME", prices:[0,53.62318841,22.46376812,16.66666667,0,0,5.434782609,2.898550725,1.449275362,0.3623188406,0,0,0,0]},
-            {model:"A25+FRAME", prices:[0,21.73913043,21.73913043,16.66666667,0,0,0,2.898550725,1.449275362,0.3623188406,0,0,0,0]},
-            {model:"A26-5G+FRAME", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"A3", prices:[0,7.608695652,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"A310", prices:[0,15.2173913,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"A320", prices:[0,15.2173913,0,0,0,0,3.623188406,0,0,0.3623188406,0,0,0,0]},
-            {model:"A50S/A30/A50+FRAME", prices:[51.44927536,47.82608696,19.56521739,15.94202899,12.31884058,0,5.072463768,2.391304348,0.9420289855,0.3623188406,0,0,0,0]},
-            {model:"A30S+FRAME", prices:[0,0,19.56521739,15.94202899,0,0,5.072463768,2.391304348,1.304347826,0.3623188406,0,0,0,0]},
-            {model:"A31 +FRAME", prices:[0,0,19.56521739,15.94202899,0,0,5.072463768,2.391304348,1.304347826,0.3623188406,0,0,0,0]},
-            {model:"A32-4G+FRAME", prices:[59.42028986,0,20.65217391,16.66666667,0,0,5.072463768,2.391304348,1.304347826,0.3623188406,0,0,0,0]},
-            {model:"A33-5G+FRAME", prices:[0,54.34782609,21.73913043,16.66666667,0,0,0,3.260869565,1.304347826,0.3623188406,0,0,0,0]},
-            {model:"A34-5G +FRAME", prices:[0,0,21.73913043,16.66666667,0,0,0,3.260869565,1.449275362,0.3623188406,0,0,0,0]},
-            {model:"A35.5G+FRAME", prices:[0,0,26.8115942,16.66666667,0,0,0,3.623188406,1.449275362,0.3623188406,0,0,0,0]},
-            {model:"A36-5G+FRAME", prices:[0,0,0,16.66666667,0,0,0,3.985507246,0,0.3623188406,0,0,0,0]},
-            {model:"A40+FRAME", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"A41+FRAME", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"A42-5G(A426)+FRAME", prices:[0,0,23.91304348,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"A5", prices:[0,0,0,0,0,0,2.898550725,0,1.811594203,0.3623188406,0,0,0,0]},
-            {model:"A510", prices:[0,0,0,0,0,0,0,0,2.536231884,0.3623188406,0,0,0,0]},
-            {model:"A520", prices:[0,0,0,0,0,0,0,0,0.7246376812,0.3623188406,0,0,0,0]},
-            {model:"A530 / A8 2018", prices:[0,21.73913043,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"A50 +FRAME", prices:[51.44927536,47.82608696,19.56521739,15.94202899,0,0,5.072463768,0,0.9420289855,0.3623188406,0,0,0,0]},
-            {model:"A51 +FRAME", prices:[56.52173913,0,21.01449275,16.66666667,0,0,5.434782609,3.260869565,1.304347826,0.3623188406,0,0,0,0]},
-            {model:"A52 / A52S +FRAME", prices:[67.39130435,0,21.73913043,18.84057971,0,0,5.797101449,5.434782609,1.449275362,0.3623188406,0,0,0,0]},
-            {model:"A53-5G+FRAME", prices:[69.56521739,65.2173913,21.73913043,0,0,0,0,0,1.449275362,0.3623188406,0,0,0,0]},
-            {model:"A54-5G+FRAME", prices:[72.46376812,0,23.55072464,0,0,0,0,0,1.449275362,0.3623188406,0,0,0,0]},
-            {model:"A55-5G+FRAME", prices:[0,0,26.08695652,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"A56-5G+FRAME", prices:[65.2173913,0,31.15942029,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"A60 / M40", prices:[13.76811594,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"a600/j600", prices:[19.20289855,0,19.56521739,0,0,10.14492754,3.985507246,0,0,0.3623188406,0,0,0,0]},
-            {model:"a6 plus", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"A7", prices:[0,8.333333333,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"A710", prices:[0,13.04347826,11.23188406,0,0,0,0,2.536231884,0,0.3623188406,0,0,0,0]},
-            {model:"A730", prices:[0,0,23.1884058,0,0,0,5.072463768,0,0,0.3623188406,0,0,0,0]},
-            {model:"A750", prices:[39.13043478,0,21.73913043,10.14492754,0,0,5.072463768,0.9420289855,0,0.3623188406,0,0,0,0]},
-            {model:"A70 +FRAME", prices:[0,0,30.43478261,16.66666667,0,0,5.434782609,3.260869565,1.449275362,0.3623188406,0,0,0,0]},
-            {model:"A71 +FRAME", prices:[72.46376812,0,25.36231884,16.66666667,13.4057971,0,5.434782609,4.202898551,1.449275362,0.3623188406,0,0,0,0]},
-            {model:"A72 +FRAME", prices:[0,0,25,0,0,0,0,5.797101449,1.449275362,0.3623188406,0,0,0,0]},
-            {model:"A73-5G +FRAME", prices:[0,0,23.1884058,0,0,0,0,5.434782609,1.449275362,0.3623188406,0,0,0,0]},
-            {model:"A8", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"A810", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"A9", prices:[0,18.11594203,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"I9300i (S3i) +FRAME", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"J120", prices:[0,10.86956522,0,0,0,0,3.043478261,0,0,0.3623188406,0,0,0,0]},
-            {model:"J2", prices:[0,0,0,0,0,0,2.898550725,0,0,0.3623188406,0,0,0,0]},
-            {model:"J3", prices:[0,11.5942029,0,0,0,0,3.043478261,0,0,0.3623188406,0,0,0,0]},
-            {model:"J250", prices:[0,0,0,0,0,6.884057971,3.043478261,0,0,0.3623188406,0,0,0,0]},
-            {model:"J3110 / J3 PRO", prices:[0,13.04347826,0,0,0,6.52173913,3.043478261,0,0,0.3623188406,0,0,0,0]},
-            {model:"J4", prices:[0,0,0,0,0,0,3.260869565,0,0,0.3623188406,0,0,0,0]},
-            {model:"J5", prices:[0,10.14492754,0,0,0,6.884057971,3.043478261,0,0,0.3623188406,0,0,0,0]},
-            {model:"J510", prices:[0,0,0,0,0,7.246376812,3.985507246,0,0,0.3623188406,0,0,0,0]},
-            {model:"J5 PRO", prices:[0,0,10.50724638,0,0,0,3.985507246,0,0,0.3623188406,0,0,0,0]},
-            {model:"J5 PRIME", prices:[7.101449275,6.739130435,0,0,0,0,3.985507246,0.9420289855,0,0.3623188406,0,0,0,0]},
-            {model:"J7", prices:[0,14.13043478,0,0,0,7.246376812,3.260869565,0,0,0.3623188406,0,0,0,0]},
-            {model:"J701", prices:[0,15.2173913,0,0,0,0,3.260869565,0,0,0.3623188406,0,0,0,0]},
-            {model:"J710", prices:[0,0,0,0,0,7.246376812,3.985507246,1.086956522,0,0.3623188406,0,0,0,0]},
-            {model:"J7 PRO /J730", prices:[0,0,14.13043478,0,0,0,3.985507246,0,0,0.3623188406,0,0,0,0]},
-            {model:"J7 PRIME", prices:[7.101449275,6.739130435,0,0,0,0,3.985507246,1.086956522,0,0.3623188406,0,0,0,0]},
-            {model:"JS", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"S5", prices:[0,0,0,0,0,0,0,2.536231884,0,0.3623188406,0,0,0,0]},
-            {model:"S6 / G920", prices:[0,10.86956522,0,0,0,0,0,2.173913043,0,0.3623188406,0,0,0,0]},
-            {model:"S7", prices:[0,29.71014493,0,0,0,0,0,2.173913043,0,0.3623188406,0,0,0,0]},
-            {model:"S8 +FRAME", prices:[0,65.2173913,0,47.10144928,0,0,0,3.623188406,0,0.3623188406,0,0,0,0]},
-            {model:"S8 PLUS +FRAME", prices:[0,0,0,47.10144928,0,0,0,3.623188406,0,0.3623188406,0,0,0,0]},
-            {model:"S9 +FRAME", prices:[0,68.84057971,0,47.10144928,0,0,0,3.623188406,0,0.3623188406,0,0,0,0]},
-            {model:"S9 PLUS +FRAME", prices:[0,0,0,47.10144928,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"S10+FRAME", prices:[0,0,0,47.10144928,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"S10 PLUS+FRAME", prices:[0,0,0,47.10144928,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"S20-5G+FRAME", prices:[0,90.57971014,0,47.10144928,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"S21 PLUS+RAME", prices:[0,0,0,47.10144928,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"NOTE3–N9000/N9005", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"NOTE 5", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"NOTE 8 +FRAME", prices:[0,9.420289855,0,47.10144928,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"NOTE10LITE+FRAME", prices:[0,0,0,47.10144928,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"NOTE 20+FRAME", prices:[0,141.3043478,0,47.10144928,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"NOTE20ULTRA+FRAME", prices:[0,0,0,47.10144928,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"M14.5G", prices:[0,8.913043478,0,0,0,0,5.434782609,0,0,0.3623188406,0,0,0,0]},
-            {model:"M20", prices:[0,7.971014493,0,0,0,0,5.072463768,0,0,0.3623188406,0,0,0,0]},
-            {model:"M22/F22+FRAME", prices:[0,0,19.20289855,15.94202899,0,0,5.072463768,0,1.086956522,0.3623188406,0,0,0,0]},
-            {model:"M31S+FRAME", prices:[0,0,18.47826087,15.94202899,0,0,5.072463768,0,1.086956522,0.3623188406,0,0,0,0]},
-            {model:"M32+FRAME", prices:[60.86956522,0,21.01449275,16.66666667,0,0,5.434782609,0,1.304347826,0.3623188406,0,0,0,0]},
-            {model:"M34.5G+FRAME", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"M51+FRAME", prices:[0,0,25.72463768,16.66666667,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"M52-5G+FRAME", prices:[0,0,26.8115942,18.84057971,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"M53-5G +FRAME", prices:[0,32.60869565,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"ZFLIP5.5G+FRAME", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"C5", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"C5", prices:[0,11.23188406,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"C5 PRO", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"C7", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"C7 PRO", prices:[0,33.33333333,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"C8", prices:[0,14.49275362,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"C9 / C9 PRO", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"E5", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"E7", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"ZFLIP3.5G+FRAME", prices:[0,148.5507246,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"ZFLIP4.5G+FRAME", prices:[0,155.7971014,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"ZFLIP5.5G+FRAME", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"ZFOLD3.5G+FRAME", prices:[0,24.63768116,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"ZFOLD4.5G+FRAME", prices:[0,27.53623188,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"M1 A1 PLUS / M1 A2 PLUS", prices:[0,7.246376812,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"M1 A2", prices:[0,0,0,0,0,0,0,1.811594203,0,0.3623188406,0,0,0,0]},
-            {model:"M1 A3", prices:[0,0,0,0,0,0,0,1.811594203,0,0.3623188406,0,0,0,0]},
-            {model:"M1 8 SE", prices:[0,15.94202899,0,0,0,0,0,1.811594203,0,0.3623188406,0,0,0,0]},
-            {model:"M1 8 LITE", prices:[0,0,0,0,0,0,0,1.811594203,0,0.3623188406,0,0,0,0]},
-            {model:"M19 / M19 PRO ORG", prices:[0,11.5942029,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"M19 LITE", prices:[0,19.56521739,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"M19T/M19TPRO/K20PRO", prices:[0,27.53623188,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"M110T/ M110TPRO 5G", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"M1 10 LITE / 5G 2021", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"M1 11", prices:[0,65.2173913,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"M1 11T / M1 11T PRO", prices:[0,0,0,0,0,0,6.739130435,0,0,0.3623188406,0,0,0,0]},
-            {model:"M1 11 LITE 5G", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"M1 11 LITE 5G", prices:[0,32.60869565,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"M1 12X", prices:[0,31.88405797,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"M1 12 LITE", prices:[0,7.971014493,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"M1 12TPRO/M112T", prices:[0,24.63768116,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"M1 PAD SE(11inch)", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"REDMI S2", prices:[0,8.695652174,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"REDMIA3.4G/REDMIA3X/POCO C61", prices:[0,7.971014493,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"REDMI 4", prices:[0,3.985507246,0,0,0,0,0,1.811594203,0,0.3623188406,0,0,0,0]},
-            {model:"REDMI 4A", prices:[0,5.797101449,0,0,0,0,0,1.811594203,0,0.3623188406,0,0,0,0]},
-            {model:"REDMI 4X", prices:[0,5.797101449,0,0,0,0,0,1.811594203,0,0.3623188406,0,0,0,0]},
-            {model:"REDMI 5", prices:[0,0,0,0,0,0,0,1.811594203,0,0.3623188406,0,0,0,0]},
-            {model:"REDMI 5A", prices:[0,5.797101449,0,0,0,0,0,1.811594203,0,0.3623188406,0,0,0,0]},
-            {model:"REDMI 6 / REDMI 6A", prices:[0,6.304347826,0,0,0,0,0,1.811594203,0,0.3623188406,0,0,0,0]},
-            {model:"REDMI 6PRO/A2LITE", prices:[0,7.101449275,0,0,0,0,0,1.811594203,0,0.3623188406,0,0,0,0]},
-            {model:"REDMI 7", prices:[0,0,0,0,0,0,0,1.811594203,0,0.3623188406,0,0,0,0]},
-            {model:"REDMI 7A", prices:[0,6.739130435,0,0,0,0,0,1.811594203,0,0.3623188406,0,0,0,0]},
-            {model:"REDMI 8 / REDMI 8A", prices:[0,7.608695652,0,0,0,0,0,2.173913043,0.9420289855,0.3623188406,0,0,0,0]},
-            {model:"REDMI 9", prices:[0,8.333333333,0,0,0,0,0,2.173913043,0.9420289855,0.3623188406,0,0,0,0]},
-            {model:"REDMI9A/9C/POCOC3/REDMI10A", prices:[0,8.550724638,0,0,0,0,0,2.173913043,0.9420289855,0.3623188406,0,0,0,0]},
-            {model:"REDMI 10C/POCO.C40", prices:[0,8.550724638,0,0,0,0,0,2.173913043,0,0.3623188406,0,0,0,0]},
-            {model:"REDMI 10.4G/REDMI10 PRIME", prices:[0,9.782608696,0,0,0,0,0,2.173913043,0,0.3623188406,0,0,0,0]},
-            {model:"REDMI 12/ REDMI13.4G", prices:[0,9.782608696,0,0,0,0,0,2.173913043,0,0.3623188406,0,0,0,0]},
-            {model:"REDMI 13C / POCO C65", prices:[0,8.695652174,0,0,0,0,0,2.173913043,0,0.3623188406,0,0,0,0]},
-            {model:"NOTE 4", prices:[5.942028986,0,0,0,0,0,0,1.449275362,0,0.3623188406,0,0,0,0]},
-            {model:"NOTE 5A", prices:[5.217391304,0,0,0,0,0,0,1.449275362,0,0.3623188406,0,0,0,0]},
-            {model:"NOTE 5/NOTE5PRO", prices:[7.463768116,0,0,0,0,0,0,1.449275362,0,0.3623188406,0,0,0,0]},
-            {model:"NOTE6PRO", prices:[7.608695652,0,0,0,0,0,0,1.811594203,0,0.3623188406,0,0,0,0]},
-            {model:"NOTE 7/NOTE7 PRO", prices:[7.608695652,0,0,0,0,0,0,2.173913043,1.086956522,0.3623188406,0,0,0,0]},
-            {model:"NOTE 8", prices:[8.550724638,0,0,0,0,0,5.434782609,2.173913043,1.086956522,0.3623188406,0,0,0,0]},
-            {model:"NOTE 8T", prices:[0,0,0,0,0,0,0,2.173913043,1.086956522,0.3623188406,0,0,0,0]},
-            {model:"NOTE 8 PRO", prices:[11.23188406,8.695652174,0,0,0,0,5.434782609,2.173913043,1.086956522,0.3623188406,0,0,0,0]},
-            {model:"NOTE 9", prices:[8.550724638,0,0,0,0,0,5.434782609,2.173913043,1.086956522,0.3623188406,0,0,0,0]},
-            {model:"NOTE 9T/REDMI 10X", prices:[8.695652174,0,0,0,0,0,0,2.173913043,1.086956522,0.3623188406,0,0,0,0]},
-            {model:"NOTE 9S / 9PRO", prices:[8.695652174,0,0,0,0,0,5.579710145,2.173913043,1.086956522,0.3623188406,0,0,0,0]},
-            {model:"NOTE10/NOTE10S.4G/POCOM5S", prices:[53.62318841,0,19.56521739,14.49275362,11.5942029,8.695652174,5.797101449,2.173913043,1.086956522,0.3623188406,0,0,0,0]},
-            {model:"NOTE10PRO4G/PROMAX/11PRO5G .4G/12PRO4G/POCOX4PRO", prices:[60.86956522,0,25.36231884,16.66666667,13.76811594,11.23188406,5.797101449,2.173913043,1.304347826,0.3623188406,0,0,0,0]},
-            {model:"NOTE11/NOTE11S/POCOM4PRO /NOTE12S", prices:[50.72463768,0,21.73913043,16.66666667,13.76811594,9.420289855,5.797101449,2.173913043,1.304347826,0.3623188406,0,0,0,0]},
-            {model:"NOTE12-4G", prices:[60.14492754,0,27.17391304,16.66666667,13.76811594,11.23188406,6.376811594,2.536231884,1.304347826,0.3623188406,0,0,0,0]},
-            {model:"NOTE 12 PRO-5G/POCOX5PRO.5G ", prices:[60.86956522,0,25.36231884,16.66666667,13.76811594,11.23188406,6.376811594,2.536231884,1.304347826,0.3623188406,0,0,0,0]},
-            {model:"NOTE 13 PRO-5GPOCOX6PRO.5G/x6", prices:[28.98550725,0,21.73913043,0,0,9.782608696,6.376811594,2.898550725,1.304347826,0.3623188406,0,0,0,0]},
-            {model:"NOTE 13-4G", prices:[50.72463768,0,25.36231884,16.66666667,13.76811594,11.23188406,6.376811594,2.898550725,1.304347826,0.3623188406,0,0,0,0]},
-            {model:"NOTE 13 PRO-4G/POCOM6PRO", prices:[28.26086957,0,21.73913043,0,0,10.14492754,6.376811594,2.173913043,1.304347826,0.3623188406,0,0,0,0]},
-            {model:"NOTE 14.4G", prices:[22.57246377,0,25.36231884,14.49275362,12.31884058,10.14492754,0,2.898550725,1.449275362,0.3623188406,0,0,0,0]},
-            {model:"POCO X3 / X3 PRO/MI10T LITE", prices:[11.95652174,9.420289855,0,0,0,7.246376812,6.15942029,2.173913043,1.304347826,0.3623188406,0,0,0,0]},
-            {model:"POCO X3 GT", prices:[11.5942029,9.420289855,0,0,0,0,6.15942029,4.202898551,1.304347826,0.3623188406,0,0,0,0]},
-            {model:"POCOX4GT-5G", prices:[0,10.14492754,0,0,0,0,0,3.623188406,0,0.3623188406,0,0,0,0]},
-            {model:"POCO X5-5G", prices:[60.14492754,0,27.17391304,16.66666667,13.76811594,11.23188406,0,2.898550725,0,0.3623188406,0,0,0,0]},
-            {model:"POCO M3/REDMI 9T", prices:[5.688405797,8.695652174,0,0,0,0,6.15942029,2.173913043,0,0.3623188406,0,0,0,0]},
-            {model:"POCO M3 PRO/REDMI10 5G/NOTE11SE", prices:[6.884057971,9.420289855,0,0,0,0,0,3.260869565,1.086956522,0.3623188406,0,0,0,0]},
-            {model:"POCO M5/POCOM4", prices:[6.34057971,8.695652174,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"POCO M4 PRO-5G", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"POCO F1", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"POCO F3/POCO F4/MI11i/REDMI K40/REDMI K40S", prices:[57.24637681,0,25.36231884,0,0,0,0,2.173913043,1.086956522,0.7246376812,0,0,0,0]},
-            {model:"POCOF4GT-REDMIK50GAMING", prices:[19.49275362,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"POCOF5", prices:[0,0,0,0,0,10.86956522,0,0,0,0.3623188406,0,0,0,0]},
-            {model:"POCO F5 PRO", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]}
-        ];
+<script>
+    // آدرس CSV گوگل شیت خود را اینجا قرار دهید
+    const sheetUrl = 'Https://docs.google.com/spreadsheets/d/e/2PACX-1vR6ZMpcmL_R5E8m9IOYJNOp-bTKbTq4AnPfe_17bbeIM-wRoORJEh3b-1bPX-JQ42c5Ol7jb8ZOm4WI/pub?output=csv'; 
+    let allData = [];
+    let headers = [];
 
-        const headers = ["LCD شرکت","NEW","IC JC BIG","MECAN","T20 WF","TFT NO FRAM","BATTY","B.CH","FLAT MAIN","F.POWER","BUZER","DOOR","MIDEL","KAFI"];
+    async function fetchData() {
+        const statusEl = document.getElementById('loadStatus');
+        statusEl.innerText = "در حال دریافت اطلاعات از گوگل شیت...";
+        
+        try {
+            const response = await fetch(sheetUrl + "&t=" + new Date().getTime());
+            const text = await response.text();
+            const rows = text.split('\n').map(r => r.split(','));
 
-        // فراخوانی قیمت از گوگل شیت
-        async function fetchDollarRate() {
-            const statusEl = document.getElementById('loadStatus');
-            statusEl.innerText = "در حال بروزرسانی...";
-            try {
-                const response = await fetch(sheetUrl);
-                const csvData = await response.text();
-                const rows = csvData.split('\n');
-                // استخراج عدد از سطر اول، ستون دوم (سلول B1)
-                const priceValue = rows[0].split(',')[1];
-                
-                if (priceValue) {
-                    document.getElementById('dollarRate').value = priceValue.trim();
-                    statusEl.innerText = "بروزرسانی موفق";
-                    updatePrices();
+            // ۱. نرخ دلار از سلول B1
+            const dollarRate = rows[0][1].replace(/,/g, '').trim();
+            document.getElementById('dollarRate').value = dollarRate;
+
+            // ۲. تیترها از ردیف دوم
+            headers = rows[1].slice(1);
+
+            // ۳. مدل‌ها از ردیف سوم به بعد
+            allData = [];
+            for(let i = 2; i < rows.length; i++) {
+                if(rows[i][0] && rows[i][0].trim() !== "") {
+                    allData.push({
+                        model: rows[i][0].trim(),
+                        prices: rows[i].slice(1).map(p => parseFloat(p) || 0)
+                    });
                 }
-            } catch (err) {
-                statusEl.innerText = "خطا در اتصال";
-                console.error(err);
-                updatePrices(); // لود کردن با مقدار 0 یا مقدار قبلی
             }
+            statusEl.innerText = "آخرین بروزرسانی: " + new Date().toLocaleTimeString('fa-IR');
+            updatePrices();
+        } catch (e) {
+            statusEl.innerText = "خطا در اتصال! لطفاً اینترنت و لینک شیت را چک کنید.";
         }
+    }
 
-        function roundToTen(num) {
-            return Math.round(num / 10) * 10;
-        }
+    function updatePrices() {
+        const rate = parseFloat(document.getElementById('dollarRate').value) || 0;
+        const rawSearch = document.getElementById('searchInput').value.toLowerCase();
+        
+        // رفع مشکل فاصله در سرچ (حذف فاصله برای جستجوی منعطف)
+        const searchClean = rawSearch.replace(/\s+/g, '');
 
-        function formatPrice(basePrice, rate) {
-            if (!basePrice || basePrice === 0) return '<span style="color:#ccc">-</span>';
-            const tomanPrice = basePrice * rate;
-            const rounded = roundToTen(tomanPrice);
-            return `<span class="price-cell">${rounded.toLocaleString('fa-IR')}</span>`;
-        }
+        const filtered = allData.filter(item => {
+            const modelClean = item.model.toLowerCase().replace(/\s+/g, '');
+            return modelClean.includes(searchClean);
+        });
 
-        function updatePrices() {
-            const rate = parseFloat(document.getElementById('dollarRate').value) || 0;
-            const search = document.getElementById('searchInput').value.toLowerCase();
-            
-            const filtered = models.filter(m => m.model.toLowerCase().includes(search));
-            
-            let tableHTML = `<table><thead><tr><th>📱 مدل</th>`;
-            headers.forEach(h => tableHTML += `<th>${h}</th>`);
-            tableHTML += `</tr></thead><tbody>`;
-            
-            filtered.forEach(item => {
-                tableHTML += `<tr><td class="model-cell">${item.model}</td>`;
-                item.prices.forEach(p => {
-                    tableHTML += `<td>${formatPrice(p, rate)}</td>`;
-                });
-                tableHTML += `</tr>`;
+        let tableHTML = `<table><thead><tr><th class="model-cell">📱 مدل</th>`;
+        headers.forEach(h => tableHTML += `<th>${h}</th>`);
+        tableHTML += `</tr></thead><tbody>`;
+
+        filtered.forEach(item => {
+            tableHTML += `<tr><td class="model-cell">${item.model}</td>`;
+            item.prices.forEach(p => {
+                const finalPrice = p * rate;
+                tableHTML += `<td>${p > 0 ? (Math.round(finalPrice)).toLocaleString('fa-IR') : '---'}</td>`;
             });
-            
-            tableHTML += `</tbody></table>`;
-            
-            document.getElementById('results').innerHTML = `
-                <div class="results-header">
-                    ${filtered.length} مدل یافت شد | نرخ فعلی مرکز: ${rate.toLocaleString('fa-IR')} تومان
-                </div>
-                <div class="table-container">${tableHTML}</div>
-            `;
-        }
+            tableHTML += `</tr>`;
+        });
 
-        function searchModels() { updatePrices(); }
-        function clearSearch() { 
-            document.getElementById('searchInput').value = ''; 
-            updatePrices(); 
-        }
+        tableHTML += `</tbody></table>`;
+        document.getElementById('results').innerHTML = tableHTML;
+    }
 
-        // شروع کار
-        document.addEventListener('DOMContentLoaded', fetchDollarRate);
-    </script>
+    // شروع خودکار
+    fetchData();
+</script>
+
 </body>
 </html>
