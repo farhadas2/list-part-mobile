@@ -3,55 +3,73 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>پنل مدیریت قیمت قطعات</title>
+    <title>مدیریت هوشمند قیمت قطعات موبایل فرهاد</title>
     <style>
         :root { --primary-color: #2c3e50; --sec-color: #27ae60; }
         body { font-family: Tahoma, Geneva, sans-serif; margin: 0; padding: 15px; background: #eef2f3; color: #333; }
         .container { max-width: 100%; margin: 0 auto; }
         
-        /* استایل هدر دینامیک */
+        /* هدر دینامیک */
         .site-header { 
             text-align: center; background: var(--primary-color); color: white; 
-            padding: 20px; border-radius: 12px; margin-bottom: 15px;
+            padding: 15px; border-radius: 12px; margin-bottom: 15px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         }
-        .site-header h1 { margin: 0; font-size: 22px; }
+        .site-header h1 { margin: 0; font-size: 18px; }
 
         .controls { 
-            background: white; padding: 15px; border-radius: 12px; 
+            background: white; padding: 12px; border-radius: 12px; 
             box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px;
             position: sticky; top: 10px; z-index: 100;
         }
 
-        .input-group { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .input-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
         input { padding: 10px; border: 2px solid #ddd; border-radius: 8px; outline: none; transition: 0.3s; }
         input:focus { border-color: var(--sec-color); }
-        #searchInput { flex-grow: 1; min-width: 250px; }
+        #searchInput { flex-grow: 1; min-width: 200px; }
 
         .table-container { 
             background: white; border-radius: 12px; overflow: auto; 
-            box-shadow: 0 5px 20px rgba(0,0,0,0.05); max-height: 65vh;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.05); max-height: 70vh;
         }
         
         table { border-collapse: collapse; width: 100%; min-width: 1000px; font-size: 13px; }
         thead th { 
             position: sticky; top: 0; background: #34495e; 
-            color: white; z-index: 10; padding: 12px 8px; text-align: right;
-            border: 1px solid #2c3e50;
+            color: white; z-index: 10; padding: 10px 5px; text-align: right;
+            border: 1px solid #2c3e50; resize: horizontal; overflow: auto;
         }
-        td { padding: 10px 8px; border-bottom: 1px solid #eee; white-space: nowrap; }
+
+        /* --- تنظیمات اختصاصی ستون مدل --- */
+        .model-cell { 
+            font-weight: bold; color: #1a237e; border-left: 2px solid #eee;
+            width: 100px;     /* عرض ستون مدل - این عدد را می‌توانید تغییر دهید */
+            min-width: 100px; 
+            padding: 8px 5px !important;
+        }
+
+        /* کوچک کردن خودکار نوشته‌های طولانی مدل */
+        .model-text {
+            display: block;
+            width: 100%;
+            font-size: clamp(10px, 2vw, 12px); /* فونت بین 10 تا 12 پیکسل متغیر است */
+            line-height: 1.2;
+            word-wrap: break-word;
+            white-space: normal;
+        }
+
+        td { padding: 8px 5px; border-bottom: 1px solid #eee; white-space: nowrap; text-align: center; }
         tbody tr:nth-child(even) { background-color: #f8f9fa; }
         tbody tr:hover { background-color: #e1f5fe; }
-        .model-cell { font-weight: bold; color: #1a237e; border-left: 2px solid #eee; width: 100px; }
 
-        /* استایل فوتر دینامیک */
         .site-footer { 
-            margin-top: 20px; background: #fff; padding: 15px; 
-            border-radius: 12px; text-align: center; font-size: 14px;
-            border-top: 4px solid var(--sec-color); color: #555; line-height: 1.6;
+            margin-top: 15px; background: #fff; padding: 12px; 
+            border-radius: 12px; text-align: center; font-size: 13px;
+            border-top: 4px solid var(--sec-color); color: #555;
         }
 
-        .status-bar { font-size: 11px; margin-top: 10px; color: #888; text-align: center; }
+        .status-bar { font-size: 10px; margin-top: 8px; color: #888; text-align: center; }
+        button { background: var(--sec-color); color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -64,10 +82,10 @@
     <div class="controls">
         <div class="input-group">
             <input type="hidden" id="dollarRate"> 
-            <input type="text" id="searchInput" placeholder="جستجوی مدل..." oninput="updatePrices()">
-            <button onclick="fetchData()" style="padding: 10px; cursor: pointer; background: var(--sec-color); color: white; border: none; border-radius: 8px;">بروزرسانی</button>
+            <input type="text" id="searchInput" placeholder="جستجوی مدل (مثلاً note8)..." oninput="updatePrices()">
+            <button onclick="fetchData()">بروزرسانی</button>
         </div>
-        <div id="loadStatus" class="status-bar">در حال دریافت...</div>
+        <div id="loadStatus" class="status-bar">...</div>
     </div>
 
     <div id="results" class="table-container"></div>
@@ -86,19 +104,12 @@
             const text = await response.text();
             const rows = text.split('\n').map(r => r.split(','));
 
-            // ۱. نرخ دلار از B1
             document.getElementById('dollarRate').value = rows[0][1].replace(/,/g, '').trim();
-
-            // ۲. تیتر هدر از D1 (ستون چهارم)
             if(rows[0][3]) document.getElementById('mainTitle').innerText = rows[0][3].trim();
-
-            // ۳. متن فوتر از F1 (ستون ششم)
             if(rows[0][5]) document.getElementById('siteFooter').innerText = rows[0][5].trim();
-
-            // ۴. سرستون‌های جدول از ردیف دوم
+            
             headers = rows[1].slice(1).map(h => h.trim());
 
-            // ۵. داده‌های قطعات از ردیف سوم
             allData = [];
             for(let i = 2; i < rows.length; i++) {
                 if(rows[i][0] && rows[i][0].trim() !== "") {
@@ -108,10 +119,10 @@
                     });
                 }
             }
-            document.getElementById('loadStatus').innerText = "بروزرسانی: " + new Date().toLocaleTimeString('fa-IR');
+            document.getElementById('loadStatus').innerText = "بروزرسانی موفق: " + new Date().toLocaleTimeString('fa-IR');
             updatePrices();
         } catch (e) {
-            document.getElementById('loadStatus').innerText = "خطا در دریافت اطلاعات!";
+            document.getElementById('loadStatus').innerText = "خطا در اتصال!";
         }
     }
 
@@ -126,7 +137,7 @@
         tableHTML += `</tr></thead><tbody>`;
 
         filtered.forEach(item => {
-            tableHTML += `<tr><td class="model-cell">${item.model}</td>`;
+            tableHTML += `<tr><td class="model-cell"><span class="model-text">${item.model}</span></td>`;
             item.prices.forEach((p, index) => {
                 if(index < headers.length && headers[index]) {
                     const final = p * rate;
