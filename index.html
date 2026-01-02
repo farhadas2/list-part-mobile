@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>پنل مدیریت هوشمند قیمت قطعات</title>
+    <title>مدیریت هوشمند قیمت قطعات موبایل فرهاد</title>
     <style>
         :root { --primary-color: #2c3e50; --sec-color: #27ae60; }
         body { font-family: Tahoma, Geneva, sans-serif; margin: 0; padding: 15px; background: #eef2f3; color: #333; }
@@ -18,7 +18,6 @@
         .input-group { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
         input { padding: 10px; border: 2px solid #ddd; border-radius: 8px; outline: none; transition: 0.3s; }
         input:focus { border-color: var(--sec-color); }
-        #dollarRate { width: 120px; font-weight: bold; color: #d35400; background: #fff5e6; }
         #searchInput { flex-grow: 1; min-width: 250px; }
 
         /* استایل جدول */
@@ -33,11 +32,11 @@
         thead th { 
             position: sticky; top: 0; background: var(--primary-color); 
             color: white; z-index: 10; padding: 12px 8px; text-align: right;
-            resize: horizontal; overflow: auto; /* قابلیت تغییر سایز ستون */
+            resize: horizontal; overflow: auto;
             border: 1px solid #34495e;
         }
 
-        td { padding: 8px; border-bottom: 1px solid #eee; white-space: nowrap; }
+        td { padding: 10px 8px; border-bottom: 1px solid #eee; white-space: nowrap; }
         
         /* رنگ بندی یک در میان */
         tbody tr:nth-child(even) { background-color: #f8f9fa; }
@@ -45,11 +44,10 @@
 
         .model-cell { 
             font-weight: bold; color: #1a237e; border-left: 2px solid #eee;
-            width: 150px; /* کمتر کردن فاصله مدل */
+            width: 100px; /* فاصله کم مدل تا اولین قیمت */
         }
 
         .status-bar { font-size: 12px; margin-top: 10px; color: #666; }
-        .price-val { color: #2e7d32; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -57,37 +55,37 @@
 <div class="container">
     <div class="controls">
         <div class="input-group">
+            <input type="hidden" id="dollarRate"> 
+            
             <input type="text" id="searchInput" placeholder="جستجوی مدل (مثلاً note 8 یا note8)..." oninput="updatePrices()">
-            <button onclick="fetchData()" style="padding: 10px; cursor: pointer;">بروزرسانی از شیت</button>
+            <button onclick="fetchData()" style="padding: 10px; cursor: pointer; background: var(--sec-color); color: white; border: none; border-radius: 8px;">بروزرسانی لیست</button>
         </div>
         <div id="loadStatus" class="status-bar">در حال آماده‌سازی...</div>
     </div>
 
-    <div id="results" class="table-container">
-        </div>
+    <div id="results" class="table-container"></div>
 </div>
 
 <script>
-    // آدرس CSV گوگل شیت خود را اینجا قرار دهید
-    const sheetUrl = 'Https://docs.google.com/spreadsheets/d/e/2PACX-1vR6ZMpcmL_R5E8m9IOYJNOp-bTKbTq4AnPfe_17bbeIM-wRoORJEh3b-1bPX-JQ42c5Ol7jb8ZOm4WI/pub?output=csv'; 
+    const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR6ZMpcmL_R5E8m9IOYJNOp-bTKbTq4AnPfe_17bbeIM-wRoORJEh3b-1bPX-JQ42c5Ol7jb8ZOm4WI/pub?output=csv'; 
     let allData = [];
     let headers = [];
 
     async function fetchData() {
         const statusEl = document.getElementById('loadStatus');
-        statusEl.innerText = "در حال دریافت اطلاعات از گوگل شیت...";
+        statusEl.innerText = "در حال دریافت اطلاعات از گوگل...";
         
         try {
             const response = await fetch(sheetUrl + "&t=" + new Date().getTime());
             const text = await response.text();
             const rows = text.split('\n').map(r => r.split(','));
 
-            // ۱. نرخ دلار از سلول B1
-            const dollarRate = rows[0][1].replace(/,/g, '').trim();
-            document.getElementById('dollarRate').value = dollarRate;
+            // ۱. ذخیره نرخ دلار در فیلد مخفی
+            const dollarRateValue = rows[0][1].replace(/,/g, '').trim();
+            document.getElementById('dollarRate').value = dollarRateValue;
 
             // ۲. تیترها از ردیف دوم
-            headers = rows[1].slice(1);
+            headers = rows[1].slice(1).map(h => h.trim());
 
             // ۳. مدل‌ها از ردیف سوم به بعد
             allData = [];
@@ -102,15 +100,14 @@
             statusEl.innerText = "آخرین بروزرسانی: " + new Date().toLocaleTimeString('fa-IR');
             updatePrices();
         } catch (e) {
-            statusEl.innerText = "خطا در اتصال! لطفاً اینترنت و لینک شیت را چک کنید.";
+            statusEl.innerText = "خطا در اتصال به پایگاه داده!";
+            console.error(e);
         }
     }
 
     function updatePrices() {
         const rate = parseFloat(document.getElementById('dollarRate').value) || 0;
         const rawSearch = document.getElementById('searchInput').value.toLowerCase();
-        
-        // رفع مشکل فاصله در سرچ (حذف فاصله برای جستجوی منعطف)
         const searchClean = rawSearch.replace(/\s+/g, '');
 
         const filtered = allData.filter(item => {
@@ -119,14 +116,19 @@
         });
 
         let tableHTML = `<table><thead><tr><th class="model-cell">📱 مدل</th>`;
-        headers.forEach(h => tableHTML += `<th>${h}</th>`);
+        headers.forEach(h => {
+            if(h) tableHTML += `<th>${h}</th>`;
+        });
         tableHTML += `</tr></thead><tbody>`;
 
         filtered.forEach(item => {
             tableHTML += `<tr><td class="model-cell">${item.model}</td>`;
-            item.prices.forEach(p => {
-                const finalPrice = p * rate;
-                tableHTML += `<td>${p > 0 ? (Math.round(finalPrice)).toLocaleString('fa-IR') : '---'}</td>`;
+            item.prices.forEach((p, index) => {
+                // فقط به تعداد سرستون‌ها قیمت نشان می‌دهیم
+                if(index < headers.length && headers[index]) {
+                    const finalPrice = p * rate;
+                    tableHTML += `<td>${p > 0 ? (Math.round(finalPrice)).toLocaleString('fa-IR') : '---'}</td>`;
+                }
             });
             tableHTML += `</tr>`;
         });
@@ -135,7 +137,6 @@
         document.getElementById('results').innerHTML = tableHTML;
     }
 
-    // شروع خودکار
     fetchData();
 </script>
 
