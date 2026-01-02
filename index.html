@@ -3,38 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سیستم قیمت قطعات موبایل فرهاد</title>
+    <title>سیستم قیمت قطعات موبایل - مدیریت مرکزی</title>
     <style>
-        /* استایل‌ها مثل قبلی */
         * { font-family: Tahoma, sans-serif; box-sizing: border-box; }
         body { margin: 0; padding: 15px; background: #f0f8ff; }
         .container { max-width: 1400px; margin: 0 auto; }
         .controls { background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 3px 15px rgba(0,0,0,0.1); }
-        h1 { color: #333; margin-top: 0; border-bottom: 3px solid #4CAF50; padding-bottom: 10px; }
+        h1 { color: #333; margin-top: 0; border-bottom: 3px solid #4CAF50; padding-bottom: 10px; font-size: 22px; }
         .input-group { display: flex; align-items: center; gap: 10px; margin: 15px 0; flex-wrap: wrap; }
         label { font-weight: bold; color: #555; min-width: 130px; }
         input { padding: 10px 12px; border: 2px solid #ddd; border-radius: 6px; font-size: 16px; flex: 1; min-width: 200px; }
-        button { background: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        input[readonly] { background-color: #eee; cursor: not-allowed; border-color: #4CAF50; color: #2e7d32; font-weight: bold; }
+        button { background: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.3s; }
         button:hover { background: #45a049; }
+        .btn-refresh { background: #2196F3; }
+        .btn-refresh:hover { background: #1976D2; }
         .results-header { background: #e3f2fd; padding: 12px 15px; border-radius: 8px; margin-bottom: 10px; color: #1565c0; font-weight: bold; }
         .table-container { background: white; border-radius: 10px; overflow: auto; box-shadow: 0 3px 15px rgba(0,0,0,0.1); }
         table { width: 100%; min-width: 1300px; border-collapse: collapse; }
-        thead { background: linear-gradient(135deg, #2196F3, #1976D2); position: sticky; top: 0; }
+        thead { background: linear-gradient(135deg, #2196F3, #1976D2); position: sticky; top: 0; z-index: 10; }
         th { color: white; padding: 14px 10px; text-align: center; font-size: 13px; white-space: nowrap; }
         td { padding: 10px 8px; border-bottom: 1px solid #eee; text-align: center; font-size: 13px; }
         .model-cell { font-weight: bold; color: #2196F3; text-align: right; padding-right: 15px; }
         .price-cell { font-weight: bold; color: #d35400; }
-        .contact { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 3px 15px rgba(0,0,0,0.1); }
+        .contact { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 3px 15px rgba(0,0,0,0.1); margin-top: 20px; }
+        .loading-status { font-size: 12px; color: #666; margin-right: 10px; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="controls">
-            <h1>💰 قیمت‌ اجناس قطعات موبایل فرهاد</h1>
+            <h1>💰 سیستم قیمت‌گذاری قطعات موبایل</h1>
             <div class="input-group">
                 <label for="dollarRate">نرخ دلار (تومان):</label>
-                <input type="number" id="dollarRate" value="136" placeholder="مثال: 136">
-                <button onclick="updatePrices()">🔄 محاسبه</button>
+                <input type="number" id="dollarRate" value="0" readonly>
+                <button class="btn-refresh" onclick="fetchDollarRate()">🔄 بروزرسانی قیمت از مرکز</button>
+                <span id="loadStatus" class="loading-status"></span>
             </div>
             <div class="input-group">
                 <label for="searchInput">🔍 جستجوی مدل:</label>
@@ -44,20 +48,19 @@
         </div>
         
         <div id="results">
-            <div class="results-header">در حال بارگذاری...</div>
+            <div class="results-header">در حال فراخوانی اطلاعات از گوگل...</div>
             <div class="table-container"></div>
         </div>
         
         <div class="contact">
             <h3>📌 اطلاعات تماس</h3>
-            <p>تهران -شهر قدس میدان بهاران 
-               تلفن تماس 09308686577
-                                                                   لیست قیمت تقریبی میباشد و برای مجودی و استعلام تماس حاصل بفرمایید</p>
+            <p>تهران - درب سبز</p>
         </div>
     </div>
 
     <script>
-        // داده‌های کامل - ۲۲۰ مدل
+        const sheetUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR6ZMpcmL_R5E8m9IOYJNOp-bTKbTq4AnPfe_17bbeIM-wRoORJEh3b-1bPX-JQ42c5Ol7jb8ZOm4WI/pub?output=csv';
+
         const models = [
             {model:"A013/A01 CORE", prices:[6.884057971,0,0,0,0,0,4.710144928,2.173913043,0,0.3623188406,0,0,0,0]},
             {model:"A032/A03 CORE", prices:[6.884057971,0,0,0,0,0,5.434782609,2.173913043,0,0.3623188406,0,0,0,0]},
@@ -260,29 +263,44 @@
             {model:"POCO F5 PRO", prices:[0,0,0,0,0,0,0,0,0,0.3623188406,0,0,0,0]}
         ];
 
-        const headers = ["LCD شرکت","چنج گلس","IC JC BIG","مکانیک","tft hd+ wf","TFTمعمولی بدون فرم","باطری","برد شارژ","فلت مین MAIN","فلت پاور","بازر کامل","درب","میدل","کفی السیدی"];
+        const headers = ["LCD شرکت","NEW","IC JC BIG","MECAN","T20 WF","TFT NO FRAM","BATTY","B.CH","FLAT MAIN","F.POWER","BUZER","DOOR","MIDEL","KAFI"];
 
-        // تابع رند به ۱۰
+        // فراخوانی قیمت از گوگل شیت
+        async function fetchDollarRate() {
+            const statusEl = document.getElementById('loadStatus');
+            statusEl.innerText = "در حال بروزرسانی...";
+            try {
+                const response = await fetch(sheetUrl);
+                const csvData = await response.text();
+                const rows = csvData.split('\n');
+                // استخراج عدد از سطر اول، ستون دوم (سلول B1)
+                const priceValue = rows[0].split(',')[1];
+                
+                if (priceValue) {
+                    document.getElementById('dollarRate').value = priceValue.trim();
+                    statusEl.innerText = "بروزرسانی موفق";
+                    updatePrices();
+                }
+            } catch (err) {
+                statusEl.innerText = "خطا در اتصال";
+                console.error(err);
+                updatePrices(); // لود کردن با مقدار 0 یا مقدار قبلی
+            }
+        }
+
         function roundToTen(num) {
             return Math.round(num / 10) * 10;
         }
 
-        // تابع فرمت قیمت
         function formatPrice(basePrice, rate) {
-            if (!basePrice || basePrice === 0) return '<span style="color:#999">-</span>';
-            
-            // ۱. تبدیل به تومان (قیمت دلاری × نرخ دلار)
+            if (!basePrice || basePrice === 0) return '<span style="color:#ccc">-</span>';
             const tomanPrice = basePrice * rate;
-            
-            // ۲. رند به ۱۰
             const rounded = roundToTen(tomanPrice);
-            
             return `<span class="price-cell">${rounded.toLocaleString('fa-IR')}</span>`;
         }
 
-        // به‌روزرسانی
         function updatePrices() {
-            const rate = parseFloat(document.getElementById('dollarRate').value) || 1;
+            const rate = parseFloat(document.getElementById('dollarRate').value) || 0;
             const search = document.getElementById('searchInput').value.toLowerCase();
             
             const filtered = models.filter(m => m.model.toLowerCase().includes(search));
@@ -303,7 +321,7 @@
             
             document.getElementById('results').innerHTML = `
                 <div class="results-header">
-                    ${filtered.length} مدل | نرخ دلار: ${rate.toLocaleString('fa-IR')} تومان
+                    ${filtered.length} مدل یافت شد | نرخ فعلی مرکز: ${rate.toLocaleString('fa-IR')} تومان
                 </div>
                 <div class="table-container">${tableHTML}</div>
             `;
@@ -315,10 +333,8 @@
             updatePrices(); 
         }
 
-        document.addEventListener('DOMContentLoaded', updatePrices);
-        document.getElementById('searchInput').addEventListener('keypress', e => {
-            if (e.key === 'Enter') updatePrices();
-        });
+        // شروع کار
+        document.addEventListener('DOMContentLoaded', fetchDollarRate);
     </script>
 </body>
 </html>
